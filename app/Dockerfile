@@ -15,10 +15,10 @@ RUN groupadd -r runner && \
     groupadd docker && \
     usermod -aG docker runner && \
     chown -R runner:runner /APP
-RUN chmod +x scripts/athena_partition_archive.py
+RUN chmod +x scripts/athena_fms_table_maintenance.py
 
 RUN pip install boto3
 
 USER ${USERMAP_UID}
 
-CMD python scripts/athena_partition_archive.py
+CMD python scripts/athena_fms_table_maintenance.py
