@@ -19,30 +19,15 @@ ATHENA_LOG_PREFIX = os.environ['ATHENA_LOG_PREFIX']
 DATABASE_NAME = os.environ['DATABASE_NAME']
 TABLE_NAME = os.environ['TABLE_NAME']
 ATHENA_OPERATION = os.environ['ATHENA_OPERATION']
-OUTPUT_BUCKET_NAME = os.environ['OUTPUT_BUCKET_NAME']
-TARGET_PATH_NAME = os.environ['TARGET_PATH_NAME']
+try:
+    OUTPUT_BUCKET_NAME = os.environ['OUTPUT_BUCKET_NAME']
+except KeyError as err:
+    OUTPUT_BUCKET_NAME = None
 
-
-'''
-ALTER TABLE table_name RENAME TO is not supported
-MSCK REPAIR TABLE fms_notprod.voyage_status;
-Input Format	org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
-Output Format	org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
-Serialization Lib	org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
-
-PARTITIONED BY (
-  `path_name` string)
-ROW FORMAT SERDE
-  'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe'
-STORED AS INPUTFORMAT
-  'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat'
-OUTPUTFORMAT
-  'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat'
-LOCATION
-  's3://s3-dq-fms-working-notprod/voyage_status/table/2019-03-05/15-01-01-12345'
-TBLPROPERTIES (
-  'transient_lastDdlTime'='1551798924')
-'''
+try:
+    TARGET_PATH_NAME = os.environ['TARGET_PATH_NAME']
+except KeyError as err:
+    TARGET_PATH_NAME = None
 
 LOG_FILE = "/APP/athena-partition.log"
 
