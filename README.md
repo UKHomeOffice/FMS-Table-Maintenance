@@ -22,11 +22,15 @@ See below a list of variables that are required, and also some that are optional
 |  Variable name           |    example    | description                                                                                     | required |
 | ------------------------ | ------------- | ------------------------------------------------------------------------------------------------| -------- |
 |    ATHENA_LOG            | s3-athena-log | Location of Athena log files                                                                    |    Y     |
-|    CSV_S3_BUCKET         | s3-bucket-csv | S3 bucket that contains the CSV file                                                            |    Y     |
-|    CSV_S3_FILE           | file.csv      | Location of the CSV file. Can be a filename, or a prefix + filename (a/path/to/csv.file)        |    Y     |
+|    ATHENA_LOG_PREFIX     | fmsprod       | S3 bucket that contains the CSV file                                                            |    Y     |
+|    DATABASE_NAME         | fms_notprod   | Name of FMS Database Name                                                                       |    Y     |
+|    TABLE_NAME            | voyage_status | Name of FMS Table Name                                                                          |    Y     |
+|    ATHENA_OPERATION      | DROP          | Type of Operation DROP or CREATE                                                                |    Y     |
+|    OUTPUT_BUCKET_NAME    | s3://s3-dq-fms-working-notprod | S3 Bucket Name                                                                 |    Y     |
+|    TARGET_PATH_NAME      | 2019-03-05    | S3 key location the table definition refers to                                                  |    Y     |
 |    AWS_ACCESS_KEY_ID     | ABCD          | AWS access key ID                                                                               |    Y     |
 |    AWS_SECRET_ACCESS_KEY | ABCD1234      | AWS secret access key                                                                           |    Y     |
-|    AWS_DEFAULT_REGION    | eu-west-2     | AWS default region                                                                              |    Y     |    
+|    AWS_DEFAULT_REGION    | eu-west-2     | AWS default region                                                                              |    Y      |    
 
 ## Example usage
 ### Running in Docker
