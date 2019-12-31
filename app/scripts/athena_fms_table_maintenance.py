@@ -19,7 +19,9 @@ ATHENA_LOG_PREFIX = os.environ['ATHENA_LOG_PREFIX']
 DATABASE_NAME = os.environ['DATABASE_NAME']
 TABLE_NAME = os.environ['TABLE_NAME']
 ATHENA_OPERATION = os.environ['ATHENA_OPERATION']
-TABLE_RENAME = os.environ['TABLE_RENAME']
+OUTPUT_BUCKET_NAME = os.environ['OUTPUT_BUCKET_NAME']
+TARGET_PATH_NAME = os.environ['TARGET_PATH_NAME']
+
 
 '''
 ALTER TABLE table_name RENAME TO is not supported
@@ -316,56 +318,96 @@ def check_table(database_name, table_name):
     except ClientError as err:
         if err.response['Error']['Code'] in 'EntityNotFoundException':
             err = 'Table ' + database_name + '.' + table_name + ' not found!'
-            send_message_to_slack(err)
             LOGGER.warning(err)
+            return False
         else:
             send_message_to_slack(err)
             error_handler(sys.exc_info()[2].tb_lineno, err)
+
+def substitute_params(sql, sql_params):
+    """
+    Substitute SQL dict of parameter values
+
+    Args:
+        sql              : sql statement
+        sql_params       : dict of parameters to substitute
+
+    Returns:
+        string containing SQL with parameters substituted in
+    """
+
+    for param_name in sql_params:
+        sql = sql.replace(('{' + '{0}'.format(param_name) + '}'),
+                          sql_params[param_name])
+    return sql
+
+def read_sql_file(sql_filename, sql_params):
+    """
+    Read SQL from file and substitute parameters.
+
+    Args:
+        sql_filename     : the filename
+        sql_params       : dict of parameters to substitute
+
+    Returns:
+        tuple string containing SQL with parameters substituted in
+        followed by dict of conditions for SQL execution
+    """
+
+    try:
+        file = open(sql_filename, "r")
+        LOGGER.info('Opened the sql file %s', sql_filename)
+        sql = file.read()
+        #(sql, conditions) = extract_conditions(sql)
+        sql = substitute_params(sql, sql_params)
+        LOGGER.info('Replaced parameters.')
+        #return (sql, conditions)
+        return sql
+    except Exception as err:
+        error_handler(sys.exc_info()[2].tb_lineno, err)
 
 def main():
     """
     Main function to execute Athena queries
     """
 
-    try:
-        origin_table = check_table(DATABASE_NAME, TABLE_NAME)
-        #Proceed only if Table exists
-        if origin_table:
-            # Check the Type of Operation. DROP or RENAME.
-            drop_table_sql = "DROP TABLE IF EXISTS " + DATABASE_NAME + "." + TABLE_NAME + ";"
-            if ATHENA_OPERATION == 'DROP':
-                try:
-                    LOGGER.info('Dropping Table from "%s.%s"', DATABASE_NAME, TABLE_NAME)
-                    LOGGER.debug(drop_table_sql)
-                    execute_athena(drop_table_sql, DATABASE_NAME)
-                except Exception as err:
-                    send_message_to_slack(err)
-                    error_handler(sys.exc_info()[2].tb_lineno, err)
-                    sys.exit(1)
-            elif ATHENA_OPERATION == 'RENAME':
-                rename_table = check_table(DATABASE_NAME, TABLE_RENAME)
-                if rename_table:
-                    #table already exists. Don't proceed with rename
-                    LOGGER.info("Operation Cannot be Performed." + TABLE_RENAME + " already exists.")
-                else:
-                    rename_table_sql = ("ALTER TABLE " + DATABASE_NAME + "." + TABLE_NAME + \
-                                 " DROP PARTITION ("  + ");")
-                    try:
-                        execute_athena(rename_table_sql, DATABASE_NAME)
-                        LOGGER.info('Dropping Table from "%s.%s"', DATABASE_NAME, TABLE_NAME)
-                        LOGGER.info(drop_table_sql)
-                        execute_athena(drop_table_sql, DATABASE_NAME)
-                    except Exception as err:
-                        send_message_to_slack(err)
-                        error_handler(sys.exc_info()[2].tb_lineno, err)
-                        sys.exit(1)
-            else:
-                LOGGER.info("Operation Cannot be Performed.Option is neither DROP NOR RENAME.")
-                # Operation cannot be performed as it is neither RENAME or DROP Table.
-
-    except Exception as err:
-        send_message_to_slack(err)
-        error_handler(sys.exc_info()[2].tb_lineno, err)
+    if ATHENA_OPERATION == 'DROP':
+        drop_table_sql = "DROP TABLE IF EXISTS " + DATABASE_NAME + "." + TABLE_NAME + ";"
+        try:
+            LOGGER.info('Dropping Table from "%s.%s"', DATABASE_NAME, TABLE_NAME)
+            LOGGER.info(drop_table_sql)
+            execute_athena(drop_table_sql, DATABASE_NAME)
+        except Exception as err:
+            send_message_to_slack(err)
+            error_handler(sys.exc_info()[2].tb_lineno, err)
+            sys.exit(1)
+    elif ATHENA_OPERATION == 'CREATE':
+        print("Checking if Table Exists Already")
+        create_table = check_table(DATABASE_NAME, TABLE_NAME)
+        if create_table:
+            #table already exists. Don't proceed with Create
+            LOGGER.info("Operation Cannot be Performed. %s.%s already exists.", \
+            DATABASE_NAME, TABLE_NAME)
+        else:
+            sql_params = {
+                'bucket-name': OUTPUT_BUCKET_NAME,
+                'table-name': TABLE_NAME.lower(),
+                'database-name': DATABASE_NAME,
+                'target-path-name': TARGET_PATH_NAME}
+            dirname = os.path.dirname(__file__)
+            sql_file = os.path.join(dirname, 'sql/create_table.sql')
+            create_table_sql = read_sql_file(sql_file, sql_params)
+            try:
+                LOGGER.info('Creating Table "%s.%s"', DATABASE_NAME, TABLE_NAME)
+                LOGGER.info(create_table_sql)
+                execute_athena(create_table_sql, DATABASE_NAME)
+            except Exception as err:
+                send_message_to_slack(err)
+                error_handler(sys.exc_info()[2].tb_lineno, err)
+                sys.exit(1)
+    else:
+        LOGGER.info("Operation Cannot be Performed.Option is neither DROP NOR CREATE.")
+        # Operation cannot be performed as it is neither CREATE nor DROP Table.
 
     LOGGER.info("We are done here.")
 
