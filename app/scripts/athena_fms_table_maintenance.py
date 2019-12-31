@@ -397,10 +397,13 @@ def main():
             dirname = os.path.dirname(__file__)
             sql_file = os.path.join(dirname, 'sql/create_table.sql')
             create_table_sql = read_sql_file(sql_file, sql_params)
+            msck_table_sql = "MSCK REPAIR TABLE " + DATABASE_NAME + "." + TABLE_NAME + ";"
             try:
                 LOGGER.info('Creating Table "%s.%s"', DATABASE_NAME, TABLE_NAME)
                 LOGGER.info(create_table_sql)
                 execute_athena(create_table_sql, DATABASE_NAME)
+                # Execute msck repair table.
+                execute_athena(msck_table_sql, DATABASE_NAME)
             except Exception as err:
                 send_message_to_slack(err)
                 error_handler(sys.exc_info()[2].tb_lineno, err)
